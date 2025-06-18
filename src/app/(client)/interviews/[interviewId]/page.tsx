@@ -68,19 +68,26 @@ function InterviewHome({ params, searchParams }: Props) {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
 
   const seeInterviewPreviewPage = () => {
-    const protocol = base_url?.includes("localhost") ? "http" : "https";
+    const isLocalhost = typeof window !== "undefined" && window.location.hostname.includes("localhost");
+    const protocol = isLocalhost ? "http" : "https";
+    const baseUrl = base_url || window.location.host;
+
     if (interview?.url) {
-      const url = interview?.readable_slug
-        ? `${protocol}://${base_url}/call/${interview?.readable_slug}`
-        : interview.url.startsWith("http")
-          ? interview.url
-          : `https://${interview.url}`;
+      let url = "";
+
+      if (interview.readable_slug) {
+        url = `${protocol}://${baseUrl}/call/${interview.readable_slug}`;
+      } else if (interview.url.startsWith("http")) {
+        url = interview.url;
+      } else {
+        url = `${protocol}://${interview.url}`;
+      }
+
       window.open(url, "_blank");
     } else {
       console.error("Interview URL is null or undefined.");
     }
   };
-
   useEffect(() => {
     const fetchInterview = async () => {
       try {
