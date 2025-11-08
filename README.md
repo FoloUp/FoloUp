@@ -120,8 +120,12 @@ If you find FoloUp helpful, please consider giving us a star on GitHub! It helps
     <p>Talvin AI</p>
   </a>
   <a href="https://tryrapidscreen.com/" target="_blank" style="text-align: center; text-decoration: none;">
-    <img src="https://media.licdn.com/dms/image/v2/D4E0BAQGbqXmQPuIQ2Q/company-logo_200_200/B4EZaWsDTcHcAM-/0/1746284852800/tryhiregenius_logo?e=1760572800&v=beta&t=IbbKmLlkeyyLNs9ZeQU4l28FBbcNJvUtaeefJhkOUE0" alt="Rapidscreen Logo" height="100" style="border-radius: 20%;">
+    <img src="https://media.licdn.com/dms/image/v2/D4E0BAQGbqXmQPuIQ2Q/company-logo_200_200/B4EZaWsDTcHcAM-/0/1746284852800/tryhiregenius_logo?e=1764201600&v=beta&t=WCrVzO0pczI72ZRR-1mbblF7NdMhS-5XdeiAO6Q5-7w" alt="Rapidscreen Logo" height="100" style="border-radius: 20%;">
     <p>Rapidscreen</p>
+  </a>
+  <a href="https://techifysolutions.com/blog/interview-screening-with-ai/" target="_blank" style="text-align: center; text-decoration: none;">
+  <img src="https://media.licdn.com/dms/image/v2/C4E0BAQFMfuKEtkDeGA/company-logo_200_200/company-logo_200_200/0/1633590742751/techify_solutions_pvt_ltd_logo?e=1764201600&v=beta&t=A6S_wFET56L1j037GOnEUaitHZQD032ybOY0-Cm4l5Q" alt="Techify Logo" height="100" style="border-radius: 20%;">
+  <p>Techify Solutions</p>
   </a>
 </div>
 
