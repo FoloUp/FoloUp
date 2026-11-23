@@ -1,49 +1,58 @@
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+// Browser-side wrapper. All response data goes through the /api/responses route
+// (service role on the server) because the `response` table is protected by
+// row-level security. The exported API is unchanged, so callers don't need to change.
 
-const supabase = createClientComponentClient();
+const call = async (body: Record<string, unknown>) => {
+  const response = await fetch("/api/responses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(result?.error ?? `Request failed (${response.status})`);
+  }
+
+  return result?.data;
+};
 
 const createResponse = async (payload: any) => {
-  const { error, data } = await supabase
-    .from("response")
-    .insert({ ...payload })
-    .select("id");
-
-  if (error) {
-    console.log(error);
+  try {
+    return await call({ action: "create", payload });
+  } catch (error) {
+    console.error("[ResponseService] createResponse failed:", error);
 
     return [];
   }
-
-  return data[0]?.id;
 };
 
 const saveResponse = async (payload: any, call_id: string) => {
-  const { error, data } = await supabase
-    .from("response")
-    .update({ ...payload })
-    .eq("call_id", call_id);
-  if (error) {
-    console.log(error);
+  try {
+    return await call({ action: "save", payload, call_id });
+  } catch (error) {
+    console.error("[ResponseService] saveResponse failed:", error);
 
     return [];
   }
-
-  return data;
 };
 
-const getAllResponses = async (interviewId: string) => {
+const updateResponse = async (payload: any, call_id: string) => {
   try {
-    const { data, error } = await supabase
-      .from("response")
-      .select("*")
-      .eq("interview_id", interviewId)
-      .or("details.is.null, details->call_analysis.not.is.null")
-      .eq("is_ended", true)
-      .order("created_at", { ascending: false });
-
-    return data || [];
+    return await call({ action: "update", payload, call_id });
   } catch (error) {
-    console.log(error);
+    console.error("[ResponseService] updateResponse failed:", error);
+
+    return [];
+  }
+};
+
+const getAllResponses = async (interviewId: string): Promise<any[]> => {
+  try {
+    return (await call({ action: "getAll", interview_id: interviewId })) || [];
+  } catch (error) {
+    console.error("[ResponseService] getAllResponses failed:", error);
 
     return [];
   }
@@ -51,69 +60,42 @@ const getAllResponses = async (interviewId: string) => {
 
 const getResponseCountByOrganizationId = async (organizationId: string): Promise<number> => {
   try {
-    const { count, error } = await supabase
-      .from("interview")
-      .select("response(id)", { count: "exact", head: true }) // join + count
-      .eq("organization_id", organizationId);
-
-    return count ?? 0;
+    return (await call({ action: "countByOrg", organization_id: organizationId })) ?? 0;
   } catch (error) {
-    console.log(error);
+    console.error("[ResponseService] getResponseCountByOrganizationId failed:", error);
 
     return 0;
   }
 };
 
-const getAllEmailAddressesForInterview = async (interviewId: string) => {
+const getAllEmailAddressesForInterview = async (interviewId: string): Promise<any[]> => {
   try {
-    const { data, error } = await supabase
-      .from("response")
-      .select("email")
-      .eq("interview_id", interviewId);
-
-    return data || [];
+    return (await call({ action: "getEmails", interview_id: interviewId })) || [];
   } catch (error) {
-    console.log(error);
+    console.error("[ResponseService] getAllEmails failed:", error);
 
     return [];
   }
 };
 
-const getResponseByCallId = async (id: string) => {
+const getResponseByCallId = async (id: string): Promise<any> => {
   try {
-    const { data, error } = await supabase.from("response").select("*").filter("call_id", "eq", id);
-
-    return data ? data[0] : null;
+    return await call({ action: "getByCallId", call_id: id });
   } catch (error) {
-    console.log(error);
+    console.error("[ResponseService] getResponseByCallId failed:", error);
 
-    return [];
+    return null;
   }
 };
 
 const deleteResponse = async (id: string) => {
-  const { error, data } = await supabase.from("response").delete().eq("call_id", id);
-  if (error) {
-    console.log(error);
+  try {
+    return await call({ action: "delete", call_id: id });
+  } catch (error) {
+    console.error("[ResponseService] deleteResponse failed:", error);
 
     return [];
   }
-
-  return data;
-};
-
-const updateResponse = async (payload: any, call_id: string) => {
-  const { error, data } = await supabase
-    .from("response")
-    .update({ ...payload })
-    .eq("call_id", call_id);
-  if (error) {
-    console.log(error);
-
-    return [];
-  }
-
-  return data;
 };
 
 export const ResponseService = {

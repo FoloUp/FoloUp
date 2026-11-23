@@ -14,34 +14,61 @@ const normalizeInterviewPayload = (payload: any) => {
   return payload;
 };
 
-const getAllInterviews = async (userId: string, organizationId: string) => {
+
+const getAllInterviews = async (
+  userId: string,
+  organizationId: string
+) => {
   try {
-    const { data: clientData, error: clientError } = await supabase
-      .from("interview")
-      .select("*")
-      .or(`organization_id.eq.${organizationId},user_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
+    const response = await fetch("/api/interviews", {
+      method: "GET",
+      cache: "no-store",
+    });
 
-    return [...(clientData || [])];
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error || "Failed to fetch interviews"
+      );
+    }
+
+    console.log("[getAllInterviews] API result:", {
+      count: result.interviews?.length ?? 0,
+      interviews: result.interviews,
+    });
+
+    return result.interviews || [];
   } catch (error) {
-    console.log(error);
-
-    return [];
+    console.error("[getAllInterviews] Failed:", error);
+    throw error;
   }
 };
 
+
+
 const getInterviewById = async (id: string) => {
   try {
-    const { data, error } = await supabase
-      .from("interview")
-      .select("*")
-      .or(`id.eq.${id},readable_slug.eq.${id}`);
+    const response = await fetch(
+      `/api/interviews/${encodeURIComponent(id)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+      }
+    );
 
-    return data ? data[0] : null;
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error || "Failed to fetch interview"
+      );
+    }
+
+    return result.interview;
   } catch (error) {
-    console.log(error);
-
-    return [];
+    console.error("[getInterviewById] Failed:", error);
+    throw error;
   }
 };
 

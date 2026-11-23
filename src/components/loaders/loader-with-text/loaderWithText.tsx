@@ -3,7 +3,7 @@ import { CircularProgress } from "@nextui-org/progress";
 function LoaderWithText() {
   return (
     <div className="relative flex flex-col items-center justify-center h-screen">
-      <CircularProgress
+      <CircularProgress aria-label="Loading"
         classNames={{
           base: "animate-spin",
           svg: "w-36 h-36 ",

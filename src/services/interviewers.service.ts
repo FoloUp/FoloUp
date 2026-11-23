@@ -52,15 +52,32 @@ const createInterviewer = async (payload: any) => {
   return data;
 };
 
-const getInterviewer = async (interviewerId: bigint) => {
+
+const getInterviewer = async (
+  interviewerId: bigint | number | string | null | undefined
+) => {
+  if (
+    interviewerId === null ||
+    interviewerId === undefined ||
+    String(interviewerId) === "0"
+  ) {
+    return null;
+  }
+
   const { data: interviewerData, error: interviewerError } = await supabase
     .from("interviewer")
     .select("*")
-    .eq("id", interviewerId)
-    .single();
+    .eq("id", String(interviewerId))
+    .maybeSingle();
 
   if (interviewerError) {
-    console.error("Error fetching interviewer:", interviewerError);
+    console.error("[getInterviewer] Supabase error:", {
+      message: interviewerError.message,
+      details: interviewerError.details,
+      hint: interviewerError.hint,
+      code: interviewerError.code,
+      interviewerId: String(interviewerId),
+    });
 
     return null;
   }

@@ -1,40 +1,138 @@
+
 import { logger } from "@/lib/logger";
-import { InterviewService } from "@/services/interviews.service";
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
-const base_url = process.env.NEXT_PUBLIC_LIVE_URL;
+import {
+  createInterviewAdmin,
+  ensureOrganizationAdmin,
+  ensureUserAdmin,
+} from "@/services/interviews-admin.service";
+
+const baseUrl = process.env.NEXT_PUBLIC_LIVE_URL;
 
 export async function POST(req: Request) {
   try {
-    const url_id = nanoid();
-    const url = `${base_url}/call/${url_id}`;
-    const body = await req.json();
-
     logger.info("create-interview request received");
 
-    const payload = body.interviewData;
+    const { userId, orgId } = await auth();
 
-    let readableSlug = null;
-    if (body.organizationName) {
-      const interviewNameSlug = payload.name?.toLowerCase().replace(/\s/g, "-");
-      const orgNameSlug = body.organizationName?.toLowerCase().replace(/\s/g, "-");
-      readableSlug = `${orgNameSlug}-${interviewNameSlug}`;
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
-    const newInterview = await InterviewService.createInterview({
+    if (!baseUrl) {
+      throw new Error("NEXT_PUBLIC_LIVE_URL is missing");
+    }
+
+    const body = await req.json();
+    const payload = body?.interviewData;
+
+    if (!payload || typeof payload !== "object") {
+      return NextResponse.json(
+        { error: "Invalid interview data" },
+        { status: 400 },
+      );
+    }
+
+    const organizationName =
+      typeof body.organizationName === "string"
+        ? body.organizationName.trim()
+        : null;
+
+    // Get authenticated Clerk user
+    const clerkUser = await currentUser();
+
+    if (!clerkUser) {
+      return NextResponse.json(
+        { error: "Clerk user not found" },
+        { status: 401 },
+      );
+    }
+
+    const email =
+      clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+
+    // Step 1: Ensure organization exists
+    if (orgId) {
+      await ensureOrganizationAdmin(
+        orgId,
+        organizationName,
+      );
+    }
+
+    // Step 2: Ensure user exists in Supabase
+    logger.info("Ensuring user exists in Supabase");
+
+    await ensureUserAdmin(
+      userId,
+      email,
+      orgId ?? null,
+    );
+
+    // Step 3: Prepare interview
+    const urlId = nanoid();
+    const interviewUrl = `${baseUrl}/call/${urlId}`;
+
+    let readableSlug: string | null = null;
+
+    if (organizationName) {
+      const interviewNameSlug = payload.name
+        ?.toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-");
+
+      const orgNameSlug = organizationName
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+
+      readableSlug = interviewNameSlug
+        ? `${orgNameSlug}-${interviewNameSlug}`
+        : orgNameSlug;
+    }
+
+    const interviewPayload = {
       ...payload,
-      url: url,
-      id: url_id,
+      user_id: userId,
+      organization_id: orgId ?? null,
+      id: urlId,
+      url: interviewUrl,
       readable_slug: readableSlug,
-    });
+    };
+
+    // Step 4: Create interview
+    const newInterview = await createInterviewAdmin(
+      interviewPayload,
+    );
 
     logger.info("Interview created successfully");
 
-    return NextResponse.json({ response: "Interview created successfully" }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        response: "Interview created successfully",
+        interview: newInterview,
+      },
+      { status: 200 },
+    );
   } catch (err) {
+    console.error("[POST /api/create-interview] Error:", err);
+
     logger.error("Error creating interview");
 
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details:
+          err instanceof Error
+            ? err.message
+            : "Unknown error",
+      },
+      { status: 500 },
+    );
   }
 }

@@ -1,57 +1,77 @@
+
 "use client";
 
-import { InterviewerService } from "@/services/interviewers.service";
 import type { Interviewer } from "@/types/interviewer";
 import { useClerk } from "@clerk/nextjs";
-import React, { useState, useContext, type ReactNode, useEffect } from "react";
+import axios from "axios";
+import React, {
+  useState,
+  useContext,
+  type ReactNode,
+  useEffect,
+} from "react";
 
 interface InterviewerContextProps {
   interviewers: Interviewer[];
   setInterviewers: React.Dispatch<React.SetStateAction<Interviewer[]>>;
   createInterviewer: (payload: any) => void;
   interviewersLoading: boolean;
-  setInterviewersLoading: (interviewersLoading: boolean) => void;
+  setInterviewersLoading: (value: boolean) => void;
 }
 
-export const InterviewerContext = React.createContext<InterviewerContextProps>({
-  interviewers: [],
-  setInterviewers: () => {},
-  createInterviewer: () => {},
-  interviewersLoading: false,
-  setInterviewersLoading: () => undefined,
-});
+export const InterviewerContext =
+  React.createContext<InterviewerContextProps>({
+    interviewers: [],
+    setInterviewers: () => {},
+    createInterviewer: () => {},
+    interviewersLoading: false,
+    setInterviewersLoading: () => undefined,
+  });
 
 interface InterviewerProviderProps {
   children: ReactNode;
 }
 
-export function InterviewerProvider({ children }: InterviewerProviderProps) {
+export function InterviewerProvider({
+  children,
+}: InterviewerProviderProps) {
   const [interviewers, setInterviewers] = useState<Interviewer[]>([]);
-  const { user } = useClerk();
   const [interviewersLoading, setInterviewersLoading] = useState(true);
+
+  const { user } = useClerk();
 
   const fetchInterviewers = async () => {
     try {
       setInterviewersLoading(true);
-      const response = await InterviewerService.getAllInterviewers(user?.id as string);
-      setInterviewers(response);
+
+      const response = await axios.get("/api/interviewers");
+
+      setInterviewers(response.data.interviewers ?? []);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to fetch interviewers:", error);
+      setInterviewers([]);
+    } finally {
+      setInterviewersLoading(false);
     }
-    setInterviewersLoading(false);
   };
 
   const createInterviewer = async (payload: any) => {
-    await InterviewerService.createInterviewer({ ...payload });
-    fetchInterviewers();
+    try {
+      await axios.post("/api/interviewers", payload);
+      await fetchInterviewers();
+    } catch (error) {
+      console.error("Failed to create interviewer:", error);
+      throw error;
+    }
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
     if (user?.id) {
       fetchInterviewers();
+    } else {
+      setInterviewers([]);
+      setInterviewersLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   return (
@@ -70,7 +90,5 @@ export function InterviewerProvider({ children }: InterviewerProviderProps) {
 }
 
 export const useInterviewers = () => {
-  const value = useContext(InterviewerContext);
-
-  return value;
+  return useContext(InterviewerContext);
 };

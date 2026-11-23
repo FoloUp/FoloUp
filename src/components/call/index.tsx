@@ -28,19 +28,28 @@ import { toast } from "sonner";
 import MiniLoader from "../loaders/mini-loader/miniLoader";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle } from "../ui/card";
+import AnimatedInterviewer, { createLevelReader } from "./AnimatedInterviewer";
 import { TabSwitchWarning, useTabSwitchPrevention } from "./tabSwitchPrevention";
 
 const webClient = new RetellWebClient();
 
+// Reads the agent's audio level (RMS) from the analyser Retell exposes once the call is connected.
+// Returns null until then (or when the analyser is unavailable).
+const getAgentLevel = createLevelReader(() => webClient.analyzerComponent?.analyser);
+
 type InterviewProps = {
   interview: Interview;
 };
+
+const DEFAULT_INTERVIEWER_IMG = "/interviewers/Lisa.png";
 
 type registerCallResponseType = {
   data: {
     registerCallResponse: {
       call_id: string;
       access_token: string;
+      transport?: "gateway" | "livekit";
+      ice_servers?: RTCIceServer[];
     };
   };
 };
@@ -204,14 +213,31 @@ function Call({ interview }: InterviewProps) {
     if (OldUser) {
       setIsOldUser(true);
     } else {
-      const registerCallResponse: registerCallResponseType = await axios.post(
-        "/api/register-call",
-        { dynamic_data: data, interviewer_id: interview?.interviewer_id },
-      );
+      let registerCallResponse: registerCallResponseType;
+      try {
+        registerCallResponse = await axios.post("/api/register-call", {
+          dynamic_data: data,
+          interviewer_id: interview?.interviewer_id,
+        });
+      } catch (error: any) {
+        console.error("Failed to register call:", error);
+        toast.error(error?.response?.data?.error ?? "Could not start the interview. Please try again.");
+        setLoading(false);
+
+        return;
+      }
       if (registerCallResponse.data.registerCallResponse.access_token) {
+        // Retell's v3 create-web-call returns connection details, not just a token.
+        // All of them must be forwarded to startCall().
+        const callDetails = registerCallResponse.data.registerCallResponse;
         await webClient
           .startCall({
-            accessToken: registerCallResponse.data.registerCallResponse.access_token,
+            accessToken: callDetails.access_token,
+            callId: callDetails.call_id,
+            transport: callDetails.transport,
+            iceServers: callDetails.ice_servers,
+            // Needed so the SDK creates the audio analyser used for the avatar's lip sync.
+            emitRawAudioSamples: true,
           })
           .catch(console.error);
         setIsCalling(true);
@@ -242,7 +268,10 @@ function Call({ interview }: InterviewProps) {
   useEffect(() => {
     const fetchInterviewer = async () => {
       const interviewer = await InterviewerService.getInterviewer(interview.interviewer_id);
-      setInterviewerImg(interviewer.image);
+      // An interview may have no interviewer assigned (interviewer_id is null).
+      // Fall back to the default interviewer image (the same interviewer register-call
+      // falls back to) when the interview has none assigned.
+      setInterviewerImg(interviewer?.image || DEFAULT_INTERVIEWER_IMG);
     };
     fetchInterviewer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -359,7 +388,7 @@ function Call({ interview }: InterviewProps) {
                     {!Loading ? "Start Interview" : <MiniLoader />}
                   </Button>
                   <AlertDialog>
-                    <AlertDialogTrigger>
+                    <AlertDialogTrigger asChild>
                       <Button
                         className="bg-white border ml-2 text-black min-w-15 h-10 rounded-lg flex flex-row justify-center mb-8"
                         style={{ borderColor: interview.theme_color }}
@@ -371,6 +400,9 @@ function Call({ interview }: InterviewProps) {
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          You will leave this interview without starting it.
+                        </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -400,17 +432,16 @@ function Call({ interview }: InterviewProps) {
                       {lastInterviewerResponse}
                     </div>
                     <div className="flex flex-col mx-auto justify-center items-center align-middle">
-                      <Image
-                        src={interviewerImg}
-                        alt="Image of the interviewer"
-                        width={120}
-                        height={120}
-                        className={`object-cover object-center mx-auto my-auto ${
-                          activeTurn === "agent"
-                            ? `border-4 border-[${interview.theme_color}] rounded-full`
-                            : ""
-                        }`}
-                      />
+                      {interviewerImg && (
+                        <AnimatedInterviewer
+                          src={interviewerImg}
+                          alt="Image of the interviewer"
+                          themeColor={interview.theme_color}
+                          active={isCalling}
+                          speaking={activeTurn === "agent"}
+                          getLevel={getAgentLevel}
+                        />
+                      )}
                       <div className="font-semibold">Interviewer</div>
                     </div>
                   </div>
@@ -445,7 +476,7 @@ function Call({ interview }: InterviewProps) {
             {isStarted && !isEnded && !isOldUser && (
               <div className="items-center p-2">
                 <AlertDialog>
-                  <AlertDialogTrigger className="w-full">
+                  <AlertDialogTrigger asChild>
                     <Button
                       className=" bg-white text-black border  border-indigo-600 h-10 mx-auto flex flex-row justify-center mb-8"
                       disabled={Loading}
@@ -495,7 +526,7 @@ function Call({ interview }: InterviewProps) {
 
                   {!isFeedbackSubmitted && (
                     <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                      <AlertDialogTrigger className="w-full flex justify-center">
+                      <AlertDialogTrigger asChild className="w-full flex justify-center">
                         <Button
                           className="bg-indigo-600 text-white h-10 mt-4 mb-4"
                           onClick={() => setIsDialogOpen(true)}
@@ -504,6 +535,10 @@ function Call({ interview }: InterviewProps) {
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
+                        <AlertDialogTitle className="sr-only">Interview feedback</AlertDialogTitle>
+                        <AlertDialogDescription className="sr-only">
+                          Tell us how the interview went.
+                        </AlertDialogDescription>
                         <FeedbackForm email={email} onSubmit={handleFeedbackSubmit} />
                       </AlertDialogContent>
                     </AlertDialog>

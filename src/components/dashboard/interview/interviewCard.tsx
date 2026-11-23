@@ -1,103 +1,170 @@
+
 import MiniLoader from "@/components/loaders/mini-loader/miniLoader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { InterviewerService } from "@/services/interviewers.service";
 import { ResponseService } from "@/services/responses.service";
 import axios from "axios";
-import { ArrowUpRight, Copy } from "lucide-react";
-import { CopyCheck } from "lucide-react";
+import {
+  ArrowUpRight,
+  Copy,
+  CopyCheck,
+  UserRound,
+} from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
   name: string | null;
-  interviewerId: bigint;
+  interviewerId: bigint | number | string | null;
   id: string;
   url: string;
-  readableSlug: string;
+  readableSlug: string | null;
 }
 
-const base_url = process.env.NEXT_PUBLIC_LIVE_URL;
+const baseUrl = process.env.NEXT_PUBLIC_LIVE_URL;
 
-function InterviewCard({ name, interviewerId, id, url, readableSlug }: Props) {
+function InterviewCard({
+  name,
+  interviewerId,
+  id,
+  url,
+  readableSlug,
+}: Props) {
   const [copied, setCopied] = useState(false);
   const [responseCount, setResponseCount] = useState<number | null>(null);
   const [isFetching, setIsFetching] = useState(false);
-  const [img, setImg] = useState("");
+  const [img, setImg] = useState<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  // Fetch interviewer safely
   useEffect(() => {
+    let cancelled = false;
+
     const fetchInterviewer = async () => {
-      const interviewer = await InterviewerService.getInterviewer(interviewerId);
-      setImg(interviewer.image);
-    };
-    fetchInterviewer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      try {
+        const interviewer =
+          await InterviewerService.getInterviewer(interviewerId);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+        if (!cancelled) {
+          setImg(
+            typeof interviewer?.image === "string" &&
+              interviewer.image.trim()
+              ? interviewer.image
+              : null
+          );
+        }
+      } catch (error) {
+        console.error("[InterviewCard] Failed to fetch interviewer:", error);
+
+        if (!cancelled) {
+          setImg(null);
+        }
+      }
+    };
+
+    fetchInterviewer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [interviewerId]);
+
+  // Fetch and analyze responses
   useEffect(() => {
+    let cancelled = false;
+
     const fetchResponses = async () => {
       try {
         const responses = await ResponseService.getAllResponses(id);
-        setResponseCount(responses.length);
-        if (responses.length > 0) {
-          setIsFetching(true);
-          for (const response of responses) {
-            if (!response.is_analysed) {
-              try {
-                const result = await axios.post("/api/get-call", {
-                  id: response.call_id,
-                });
 
-                if (result.status !== 200) {
-                  throw new Error(`HTTP error! status: ${result.status}`);
-                }
-              } catch (error) {
-                console.error(
-                  `Failed to call api/get-call for response id ${response.call_id}:`,
-                  error,
+        if (cancelled) return;
+
+        setResponseCount(responses.length);
+
+        const pendingResponses = responses.filter(
+          (response) => !response.is_analysed
+        );
+
+        if (pendingResponses.length > 0) {
+          setIsFetching(true);
+
+          for (const response of pendingResponses) {
+            if (cancelled) break;
+
+            try {
+              const result = await axios.post("/api/get-call", {
+                id: response.call_id,
+              });
+
+              if (result.status !== 200) {
+                throw new Error(
+                  `HTTP error! status: ${result.status}`
                 );
               }
+            } catch (error) {
+              console.error(
+                `[InterviewCard] Failed to analyze response ${response.call_id}:`,
+                error
+              );
             }
           }
-          setIsFetching(false);
         }
       } catch (error) {
-        console.error(error);
+        console.error("[InterviewCard] Failed to fetch responses:", error);
+      } finally {
+        if (!cancelled) {
+          setIsFetching(false);
+        }
       }
     };
 
     fetchResponses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  const copyToClipboard = () => {
-    navigator.clipboard
-      .writeText(readableSlug ? `${base_url}/call/${readableSlug}` : (url as string))
-      .then(
-        () => {
-          setCopied(true);
-          toast.success("The link to your interview has been copied to your clipboard.", {
-            position: "bottom-right",
-            duration: 3000,
-          });
-          setTimeout(() => {
-            setCopied(false);
-          }, 2000);
-        },
-        (err) => {
-          console.log("failed to copy", err.mesage);
-        },
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const copyToClipboard = async () => {
+    const interviewLink = readableSlug
+      ? `${baseUrl}/call/${readableSlug}`
+      : url;
+
+    try {
+      await navigator.clipboard.writeText(interviewLink);
+
+      setCopied(true);
+
+      toast.success(
+        "The link to your interview has been copied to your clipboard.",
+        {
+          position: "bottom-right",
+          duration: 3000,
+        }
       );
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("[InterviewCard] Failed to copy link:", error);
+
+      toast.error("Failed to copy the interview link.");
+    }
   };
 
-  const handleJumpToInterview = (event: React.MouseEvent) => {
+  const handleJumpToInterview = (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
     event.stopPropagation();
     event.preventDefault();
-    const interviewUrl = readableSlug ? `/call/${readableSlug}` : `/call/${url}`;
-    window.open(interviewUrl, "_blank");
+
+    const interviewPath = readableSlug
+      ? `/call/${readableSlug}`
+      : `/call/${url}`;
+
+    window.open(interviewPath, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -113,6 +180,7 @@ function InterviewCard({ name, interviewerId, id, url, readableSlug }: Props) {
           <div className="w-full h-40 overflow-hidden bg-indigo-600 flex items-center text-center">
             <CardTitle className="w-full mt-3 mx-2 text-white text-lg">
               {name}
+
               {isFetching && (
                 <div className="z-100 mt-[-5px]">
                   <MiniLoader />
@@ -120,40 +188,58 @@ function InterviewCard({ name, interviewerId, id, url, readableSlug }: Props) {
               )}
             </CardTitle>
           </div>
-          <div className="flex flex-row items-center mx-4 ">
+
+          <div className="flex flex-row items-center mx-4">
             <div className="w-full overflow-hidden">
-              <Image
-                src={img}
-                alt="Picture of the interviewer"
-                width={70}
-                height={70}
-                className="object-cover object-center"
-              />
+              {img ? (
+                <Image
+                  src={img}
+                  alt="Picture of the interviewer"
+                  width={70}
+                  height={70}
+                  className="object-cover object-center"
+                  onError={() => setImg(null)}
+                />
+              ) : (
+                <div className="w-[70px] h-[70px] flex items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                  <UserRound size={32} />
+                </div>
+              )}
             </div>
+
             <div className="text-black text-sm font-semibold mt-2 mr-2 whitespace-nowrap">
-              Responses: <span className="font-normal">{responseCount?.toString() || 0}</span>
+              Responses:{" "}
+              <span className="font-normal">
+                {responseCount ?? 0}
+              </span>
             </div>
           </div>
+
           <div className="absolute top-2 right-2 flex gap-1">
             <Button
               className="text-xs text-indigo-600 px-1 h-6"
-              variant={"secondary"}
+              variant="secondary"
               onClick={handleJumpToInterview}
             >
               <ArrowUpRight size={16} />
             </Button>
+
             <Button
-              className={`text-xs text-indigo-600 px-1 h-6  ${
+              className={`text-xs text-indigo-600 px-1 h-6 ${
                 copied ? "bg-indigo-300 text-white" : ""
               }`}
-              variant={"secondary"}
+              variant="secondary"
               onClick={(event) => {
                 event.stopPropagation();
                 event.preventDefault();
                 copyToClipboard();
               }}
             >
-              {copied ? <CopyCheck size={16} /> : <Copy size={16} />}
+              {copied ? (
+                <CopyCheck size={16} />
+              ) : (
+                <Copy size={16} />
+              )}
             </Button>
           </div>
         </CardContent>
