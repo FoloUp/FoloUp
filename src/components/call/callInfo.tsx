@@ -67,8 +67,13 @@ function CallInfo({ call_id, onDeleteResponse, onCandidateStatusChange }: CallPr
         const response = await axios.post("/api/get-call", { id: call_id });
         setCall(response.data.callResponse);
         setAnalytics(response.data.analytics);
-      } catch (error) {
-        console.error(error);
+      } catch (error: any) {
+        // 404 = the response no longer exists (e.g. it was just deleted).
+        if (error?.response?.status === 404) {
+          console.warn("[CallInfo] Response not found:", call_id);
+        } else {
+          console.error(error);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -83,6 +88,12 @@ function CallInfo({ call_id, onDeleteResponse, onCandidateStatusChange }: CallPr
       setIsLoading(true);
       try {
         const response = await ResponseService.getResponseByCallId(call_id);
+
+        // The response may not exist (deleted, or the request failed).
+        if (!response || Array.isArray(response)) {
+          return;
+        }
+
         setEmail(response.email);
         setName(response.name);
         setCandidateStatus(response.candidate_status);
@@ -236,7 +247,7 @@ function CallInfo({ call_id, onDeleteResponse, onCandidateStatusChange }: CallPr
                       </SelectContent>
                     </Select>
                     <AlertDialog>
-                      <AlertDialogTrigger>
+                      <AlertDialogTrigger asChild>
                         <Button disabled={isClicked} className="bg-red-500 hover:bg-red-600 p-2">
                           <TrashIcon size={16} className="" />
                         </Button>
@@ -293,7 +304,7 @@ function CallInfo({ call_id, onDeleteResponse, onCandidateStatusChange }: CallPr
               {analytics?.overallScore !== undefined && (
                 <div className="flex flex-col gap-3 text-sm p-4 rounded-2xl bg-slate-50">
                   <div className="flex flex-row gap-2 align-middle">
-                    <CircularProgress
+                    <CircularProgress aria-label="Score"
                       classNames={{
                         svg: "w-28 h-28 drop-shadow-md",
                         indicator: "stroke-indigo-600",
@@ -322,7 +333,7 @@ function CallInfo({ call_id, onDeleteResponse, onCandidateStatusChange }: CallPr
               {analytics?.communication && (
                 <div className="flex flex-col gap-3 text-sm p-4 rounded-2xl bg-slate-50">
                   <div className="flex flex-row gap-2 align-middle">
-                    <CircularProgress
+                    <CircularProgress aria-label="Score"
                       classNames={{
                         svg: "w-28 h-28 drop-shadow-md",
                         indicator: "stroke-indigo-600",
@@ -359,13 +370,13 @@ function CallInfo({ call_id, onDeleteResponse, onCandidateStatusChange }: CallPr
               <div className="flex flex-col gap-3 text-sm p-4 rounded-2xl bg-slate-50">
                 <div className="flex flex-row gap-2  align-middle">
                   <p className="my-auto">User Sentiment: </p>
-                  <p className="font-medium my-auto">
+                  <div className="font-medium my-auto">
                     {call?.call_analysis?.user_sentiment === undefined ? (
                       <Skeleton className="w-[200px] h-[20px]" />
                     ) : (
                       call?.call_analysis?.user_sentiment
                     )}
-                  </p>
+                  </div>
 
                   <div
                     className={`${

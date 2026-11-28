@@ -1,5 +1,9 @@
+
 import { logger } from "@/lib/logger";
-import { SYSTEM_PROMPT, generateQuestionsPrompt } from "@/lib/prompts/generate-questions";
+import {
+  SYSTEM_PROMPT,
+  generateQuestionsPrompt,
+} from "@/lib/prompts/generate-questions";
 import { NextResponse } from "next/server";
 import { OpenAI } from "openai";
 
@@ -7,44 +11,38 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   logger.info("generate-interview-questions request received");
-  const body = await req.json();
-
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    maxRetries: 5,
-    dangerouslyAllowBrowser: true,
-  });
 
   try {
-    const baseCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const body = await req.json();
+
+    const client = new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+      maxRetries: 5,
+    });
+
+    const completion = await client.chat.completions.create({
+      model: "qwen/qwen3.8-27b",
       messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: generateQuestionsPrompt(body),
-        },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: generateQuestionsPrompt(body) },
       ],
       response_format: { type: "json_object" },
     });
 
-    const basePromptOutput = baseCompletion.choices[0] || {};
-    const content = basePromptOutput.message?.content;
+    const content = completion.choices[0]?.message?.content;
 
     logger.info("Interview questions generated successfully");
 
     return NextResponse.json(
-      {
-        response: content,
-      },
+      { response: content },
       { status: 200 },
     );
   } catch (error) {
     logger.error("Error generating interview questions");
-
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "internal server error" },
+      { status: 500 },
+    );
   }
 }

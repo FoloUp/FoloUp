@@ -29,7 +29,13 @@ import { useOrganization } from "@clerk/nextjs";
 import { Eye, Filter, Palette, Pencil, Share2, UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, use } from "react";
-import { ChromePicker } from "react-color";
+import dynamic from "next/dynamic";
+
+// react-color generates browser-specific prefixed styles, so render it client-side only
+// to avoid a hydration mismatch.
+const ChromePicker = dynamic(() => import("react-color").then((m) => m.ChromePicker), {
+  ssr: false,
+});
 import { toast } from "sonner";
 
 interface Props {
@@ -93,10 +99,13 @@ function InterviewHome({ params, searchParams }: Props) {
         setLoading(false);
       }
     };
-    if (!interview || !isGeneratingInsights) {
+    // Fetch on first load, and refetch when insight generation toggles.
+    // (Depending on `interview` here would refetch forever, since each fetch sets it.)
+    if (!interview || isGeneratingInsights) {
       fetchInterview();
     }
-  }, [getInterviewById, resolvedParams.interviewId, isGeneratingInsights, interview]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: interview intentionally omitted
+  }, [getInterviewById, resolvedParams.interviewId, isGeneratingInsights]);
 
   useEffect(() => {
     const fetchOrganizationData = async () => {

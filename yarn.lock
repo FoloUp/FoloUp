@@ -4759,6 +4759,11 @@ gopd@^1.2.0:
   resolved "https://registry.yarnpkg.com/gopd/-/gopd-1.2.0.tgz#89f56b8217bdbc8802bd299df6d7f1081d7e51a1"
   integrity sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==
 
+groq-sdk@^1.6.0:
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/groq-sdk/-/groq-sdk-1.6.0.tgz#6938848229935425e29aa5a9b225b50f4fbc89a9"
+  integrity sha512-ggMgo6n84aZdNObgkSbSxWrdAq4wABsViIRb5e4N15bMUtDLZVhqlgZOI7X4TeqdBMdaVUOuUdZxAZIp06u0vw==
+
 has-symbols@^1.0.3, has-symbols@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/has-symbols/-/has-symbols-1.1.0.tgz#fc9c6a783a084951d0b971fe1018de813707a338"
@@ -5468,26 +5473,18 @@ resolve@^1.1.7, resolve@^1.19.0, resolve@^1.22.8:
     path-parse "^1.0.7"
     supports-preserve-symlinks-flag "^1.0.0"
 
-retell-client-js-sdk@^2.0.0:
-  version "2.0.6"
-  resolved "https://registry.yarnpkg.com/retell-client-js-sdk/-/retell-client-js-sdk-2.0.6.tgz#db887e9b4ccf42c1fb29fc620f54bd47c4b8f9ed"
-  integrity sha512-uFYY/C1sbMUb+4YlH9PWyrLrV+7Dl7qdAzt+m4TNND3ObZdDTLV/Z+JCJc6MAuAbpSmJ9q6lRWQj+w9iqNlwVg==
+retell-client-js-sdk@^3.0.4:
+  version "3.0.4"
+  resolved "https://registry.yarnpkg.com/retell-client-js-sdk/-/retell-client-js-sdk-3.0.4.tgz#074ff94a0cf588c463c0764909fd334e4c9244b9"
+  integrity sha512-aGnvdujX49W8V4yCCfdw9eROkI5rjNeKUMeHnmXMs2nR39+bMyJMuNAe3PUwLDM3Pnwd1+K7xpQkiS6mkTvRSA==
   dependencies:
     eventemitter3 "^5.0.1"
     livekit-client "^2.5.1"
 
-retell-sdk@^4.19.0:
-  version "4.20.0"
-  resolved "https://registry.yarnpkg.com/retell-sdk/-/retell-sdk-4.20.0.tgz#5e73809433a641a88f97a1651f883645f2f873e2"
-  integrity sha512-GpFDKGlJ66rM3U2pg/0fWpD7JdXzrSbSM11s8ki9NMzNDgdRJssU/dKHMXkpinw96nEo/+qWd8a6Jz2W85wfYw==
-  dependencies:
-    "@types/node" "^18.11.18"
-    "@types/node-fetch" "^2.6.4"
-    abort-controller "^3.0.0"
-    agentkeepalive "^4.2.1"
-    form-data-encoder "1.7.2"
-    formdata-node "^4.3.2"
-    node-fetch "^2.6.7"
+retell-sdk@^6.2.22:
+  version "6.2.22"
+  resolved "https://registry.yarnpkg.com/retell-sdk/-/retell-sdk-6.2.22.tgz#49b80ea924211d593d0c7857e2c5e3d79aea58fc"
+  integrity sha512-tX0d3MFK5s95B50TS76gxl7Yoc0gCKStHZ1idR5WWkhUA7yOokCGQxMRxPbRjFoJaG6bWiPY+0kd0iZpwLndsw==
 
 reusify@^1.0.4:
   version "1.1.0"

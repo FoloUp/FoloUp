@@ -166,7 +166,7 @@ function EditInterview({ interview }: EditInterviewProps) {
               Save <SaveIcon size={16} className="ml-2" />
             </Button>
             <AlertDialog>
-              <AlertDialogTrigger>
+              <AlertDialogTrigger asChild>
                 <Button disabled={isClicked} className="bg-red-500 hover:bg-red-600 mr-5 mt-2 p-2">
                   <TrashIcon size={16} className="" />
                 </Button>

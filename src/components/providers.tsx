@@ -12,14 +12,16 @@ import React from "react";
 
 const queryClient = new QueryClient();
 
-const providers = ({ children }: ThemeProviderProps) => {
-  const Provider = compose([
-    InterviewProvider,
-    InterviewerProvider,
-    ResponseProvider,
-    ClientProvider,
-  ]);
+// Compose once at module level. Doing this inside the component created new component
+// types on every render, which remounted the whole tree and reset all state.
+const Provider = compose([
+  InterviewProvider,
+  InterviewerProvider,
+  ResponseProvider,
+  ClientProvider,
+]);
 
+const providers = ({ children }: ThemeProviderProps) => {
   return (
     <NextThemesProvider attribute="class" defaultTheme="light">
       <QueryClientProvider client={queryClient}>

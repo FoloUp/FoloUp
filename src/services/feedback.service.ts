@@ -1,17 +1,22 @@
 import type { FeedbackData } from "@/types/response";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-const supabase = createClientComponentClient();
-
+// Feedback is saved through a server route (service role), because the
+// feedback table is protected by row-level security.
 const submitFeedback = async (feedbackData: FeedbackData) => {
-  const { error, data } = await supabase.from("feedback").insert(feedbackData).select();
+  const response = await fetch("/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(feedbackData),
+  });
 
-  if (error) {
-    console.error("Error submitting feedback:", error);
-    throw error;
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    console.error("Error submitting feedback:", result?.error ?? response.statusText);
+    throw new Error(result?.error ?? "Failed to submit feedback");
   }
 
-  return data;
+  return result?.feedback ?? null;
 };
 
 export const FeedbackService = {

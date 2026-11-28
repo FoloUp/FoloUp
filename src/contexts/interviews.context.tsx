@@ -3,7 +3,7 @@
 import { InterviewService } from "@/services/interviews.service";
 import type { Interview } from "@/types/interview";
 import { useClerk, useOrganization } from "@clerk/nextjs";
-import React, { useState, useContext, type ReactNode, useEffect } from "react";
+import React, { useState, useContext, type ReactNode, useEffect, useCallback } from "react";
 
 interface InterviewContextProps {
   interviews: Interview[];
@@ -48,11 +48,13 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
     setInterviewsLoading(false);
   };
 
-  const getInterviewById = async (interviewId: string) => {
+  // Stable identity: pages use this in useEffect deps, and a new function on every render
+  // would re-trigger their fetch effects in an endless loop.
+  const getInterviewById = useCallback(async (interviewId: string) => {
     const response = await InterviewService.getInterviewById(interviewId);
 
     return response;
-  };
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
